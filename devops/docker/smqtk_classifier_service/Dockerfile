@@ -19,15 +19,17 @@ RUN apt-get -y update \
         python3-dev \
         python3-pip \
         vim \
+        zlib1g-dev \
+        libjpeg-dev \
         # Caffe TPL deps
-        libboost-python1.65.1=1.65.1+dfsg-0ubuntu5 \
-        libboost-system1.65.1=1.65.1+dfsg-0ubuntu5 \
-        libboost-thread1.65.1=1.65.1+dfsg-0ubuntu5 \
-        libgoogle-glog0v5=0.3.5-1 \
-        libgflags2.2=2.2.1-1 \
-        libhdf5-100=1.10.0-patch1+docs-4 \
-        libprotobuf10=3.0.0-9.1ubuntu1 \
-        libopenblas-base=0.2.20+ds-4 \
+        libboost-python1.65.1 \
+        libboost-system1.65.1 \
+        libboost-thread1.65.1 \
+        libgoogle-glog0v5 \
+        libgflags2.2 \
+        libhdf5-100 \
+        libprotobuf10 \
+        libopenblas-base \
  # Clean up apt resources.
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
