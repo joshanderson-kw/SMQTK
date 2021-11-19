@@ -130,7 +130,7 @@ USER smqtk
 WORKDIR /home/smqtk
 
 # Setup expected user-space directories.
-RUN mkdir -p data/{models,configs,logs,db.psql,db.mongo} \
+RUN mkdir -p data/{models,configs,logs,db.psql,db.mongo,notebook_pics} \
  && ln -s /images data/images \
     # Link to Caffe downloads
  && mkdir caffe \
@@ -153,9 +153,14 @@ COPY --chown=smqtk:smqtk \
      devops/docker/smqtk_iqr_playground/default_confs/cpu/* \
      /home/smqtk/data/configs/
 
-# Copy in jupyter notebook
+# Copy in jupyter notebook pictures
 COPY --chown=smqtk:smqtk \
-     devops/docker/smqtk_iqr_playground/notebook \
+     devops/docker/smqtk_iqr_playground/notebook_pics/* \
+     /home/smqtk/data/notebook_pics/
+
+# Copy in jupyter notebook file
+COPY --chown=smqtk:smqtk \
+     devops/docker/smqtk_iqr_playground/libsvm_test.ipynb \
      /home/smqtk/data/
 
 ENTRYPOINT ["/home/smqtk/entrypoint.sh"]

@@ -150,6 +150,8 @@ then
     STP_CMD="${LOG_DIR}/compute_many_descriptors.stamp"
     LOG_NIT="${LOG_DIR}/nn_index_tool.log"
     STP_NIT="${LOG_DIR}/nn_index_tool.stamp"
+    LOG_JUP="${LOG_DIR}/jupyter_notebook.log"
+    STP_JUP="${LOG_DIR}/jupyter_notebook.stamp"
 
     # Create list of image files
     IMAGE_DIR_FILELIST="${MODEL_DIR}/${IMAGE_DIR}.filelist.txt"
@@ -187,8 +189,8 @@ then
     # Tail build logs until they are done
     # - touch log files first to prevent tail warning about files not existing.
     TAIL_PID="build_log_tail.pid"
-    touch "${LOG_GIT}" "${LOG_CMD}" "${LOG_NIT}"
-    tail -F "${LOG_GIT}" "${LOG_CMD}" "${LOG_NIT}" &
+    touch "${LOG_GIT}" "${LOG_CMD}" "${LOG_NIT}" "${LOG_JUP}"
+    tail -F "${LOG_GIT}" "${LOG_CMD}" "${LOG_NIT}" "${LOG_JUP}" &
     echo "$!" >"${TAIL_PID}"
 
     # Compute descriptors
@@ -217,24 +219,11 @@ fi
 
 ################################################################################
 
-echo "Starting SMQTK IqrService..."
-SMQTK_REST_IQR_PID="smqtk_rest_iqr.pid"
-runApplication \
-  -a IqrService \
-  -vtc "${CONFIG_DIR}/${SMQTK_REST_IQR_CONFIG}" \
-  &>"${LOG_DIR}/runApp.IqrService.log" &
-echo "$!" >"${SMQTK_REST_IQR_PID}"
-echo "Starting SMQTK IqrService... Done"
-
-echo "Starting SMQTK IqrSearchDispatcher..."
-SMQTK_GUI_IQR_PID="smqtk_iqr.pid"
-runApplication \
-  -a IqrSearchDispatcher \
-  -vtc "${CONFIG_DIR}/${SMQTK_GUI_IQR_CONFIG}" \
-  &>"${LOG_DIR}/runApp.IqrSearchDispatcher.log" &
-echo "$!" >"${SMQTK_GUI_IQR_PID}"
-echo "Starting SMQTK IqrSearchDispatcher... Done"
-
+echo "Starting jupyter notebook..."
+jupyter-notebook --ip 0.0.0.0 &>"${LOG_DIR}/jupyter_notebook.log"
+JUPYTER_PID="jupyter.pid"
+echo "$!" >"${JUPYTER_PID}"
+echo "Starting jupyter notebook... Done"
 
 
 #
@@ -248,7 +237,8 @@ function process_pid_wait() {
   wait $(cat "${POSTGRES_PID}"       \
              "${MONGOD_PID}"         \
              "${SMQTK_REST_IQR_PID}" \
-             "${SMQTK_GUI_IQR_PID}")
+             "${SMQTK_GUI_IQR_PID}" \
+             "${JUPYTER_PID}")
 }
 
 #
@@ -258,7 +248,8 @@ function process_pid_cleanup() {
   rm "${POSTGRES_PID}" \
      "${MONGOD_PID}" \
      "${SMQTK_REST_IQR_PID}" \
-     "${SMQTK_GUI_IQR_PID}"
+     "${SMQTK_GUI_IQR_PID}" \
+     "${JUPYTER_PID}"
 }
 
 #
@@ -282,6 +273,9 @@ function process_cleanup() {
 
   echo "Stopping PostgreSQL"
   kill -${signal} $(cat "${POSTGRES_PID}")
+
+  echo "Stopping jupyter notebook"
+  kill -${signal} $(cat "${JUPYTER_PID}")
 
   set -e
 

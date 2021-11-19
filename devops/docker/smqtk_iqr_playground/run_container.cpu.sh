@@ -33,7 +33,6 @@ then
     -p ${IQR_REST_PORT_PUBLISH}:5001 \
     -p 8888:8888 \
     -v "${IMAGE_DIR}":/images \
-    -v "/home/local/KHQ/josh.anderson/Projects/SMQTK/SMQTK/python/smqtk":/usr/local/lib/python3.6/dist-packages/smqtk \
     --name "${CONTAINER_NAME}" \
     ${IQR_CONTAINER}:${IQR_CONTAINER_VERSION} -b "$@"
 fi
@@ -44,6 +43,5 @@ echo
 docker exec ${CONTAINER_NAME} tail \
     data/logs/compute_many_descriptors.log \
     data/logs/train_itq.log data/logs/compute_hash_codes.log \
-    data/logs/runApp.IqrSearchDispatcher.log \
-    data/logs/runApp.IqrService.log
+    data/logs/jupyter_notebook.log
 "
