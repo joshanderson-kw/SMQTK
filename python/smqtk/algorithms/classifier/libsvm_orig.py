@@ -5,7 +5,6 @@ import logging
 import os
 import pickle
 import tempfile
-import joblib
 
 import numpy
 import numpy.linalg
@@ -17,9 +16,11 @@ from smqtk.representation.data_element import from_uri
 from smqtk.utils.parallel import parallel_map
 
 try:
-    from sklearn import svm
+    import svm  # type: ignore
+    import svmutil  # type: ignore
 except ImportError:
     svm = None
+    svmutil = None
 
 
 class LibSvmClassifier (SupervisedClassifier):
@@ -44,7 +45,7 @@ class LibSvmClassifier (SupervisedClassifier):
         :rtype: bool
 
         """
-        return None not in {svm}
+        return None not in {svm, svmutil}
 
     # noinspection PyDefaultArgument
     def __init__(self, svm_model_uri=None, svm_label_map_uri=None,
@@ -135,7 +136,8 @@ class LibSvmClassifier (SupervisedClassifier):
                 state['__LOCAL__'] = True
                 state['__LOCAL_LABELS__'] = self.svm_label_map
 
-                joblib.dump(self.svm_model, fp)
+                fp_bytes = fp.encode('utf8')
+                svmutil.svm_save_model(fp_bytes, self.svm_model)
                 with open(fp, 'rb') as model_f:
                     state['__LOCAL_MODEL__'] = model_f.read()
 
@@ -170,20 +172,7 @@ class LibSvmClassifier (SupervisedClassifier):
                     model_f.write(state['__LOCAL_MODEL__'])
 
                 fp_bytes = fp.encode('utf8')
-                self.svm_model = joblib.load(fp_bytes)
-
-                if isinstance(self.svm_model, svm.SVC):
-                    self.svm_type = 'C-SVC'
-                elif isinstance(self.svm_model, svm.NuSVC):
-                    self.svm_type = 'nu-SVC'
-                elif isinstance(self.svm_model, svm.OneClassSVM):
-                    self.svm_type = 'one-class SVM'
-                elif isinstance(self.svm_model, svm.SVR):
-                    self.svm_type = 'epsilon-SVR'
-                elif isinstance(self.svm_model, svm.NuSVR):
-                    self.svm_type = 'nu-SVR'
-                else:
-                    raise RuntimeError("Invalid SVM model type loaded.")
+                self.svm_model = svmutil.svm_load_model(fp_bytes)
 
             finally:
                 os.remove(fp)
@@ -325,9 +314,7 @@ class LibSvmClassifier (SupervisedClassifier):
         #: :type: dict
         params = deepcopy(self.train_params)
         params.update(param_debug)
-
         # Calculating class weights if set to C-SVC type SVM
-        weights = {}
         if '-s' not in params or int(params['-s']) == 0:
             # (john.moeller): The weighting should probably be the geometric
             # mean of the number of examples over the classes divided by the
@@ -335,41 +322,17 @@ class LibSvmClassifier (SupervisedClassifier):
             gmean = scipy.stats.gmean(train_group_sizes)
             for i, n in enumerate(train_group_sizes, CLASS_LABEL_OFFSET):
                 w = gmean / n
-                weights[i] = w
-                #LOG.debug("-- class '%s' weight: %s", self.svm_label_map[i], w)
-                print("-- class '%s' weight: %s", self.svm_label_map[i], w)
+                params['-w' + str(i)] = w
+                self._log.debug("-- class '%s' weight: %s",
+                                self.svm_label_map[i], w)
 
-        print("-- params %s" % (params))
-        print("-- weights %s" % (weights))
-        svm_map: Dict[Any, str] = {0: 'C-SVC', 1: 'nu-SVC', 2: 'one-class SVM', 3: 'epsilon-SVR', 4: 'nu-SVR'}
-        kernel_map: Dict[Any, str] = {0: 'linear', 1: 'poly', 2: 'rbf', 3: 'sigmoid'}
-        probability_map: Dict[Any, bool] = {0: False, 1: True}
-
-        if '-s' not in params:
-            self.svm_type = 'C-SVC'
-        else:
-            self.svm_type = svm_map[params['-s']]
-
-        # Create sklearn SVM instance
-        if self.svm_type == 'C-SVC':
-            self.svm_model = svm.SVC(C=self.train_params['-c'],
-                                     kernel=kernel_map[params['-t']],
-                                     probability=probability_map[params['-b']],
-                                     class_weight=weights)
-        elif self.svm_type == 'nu-SVC':
-            self.svm_model = svm.NuSVC(kernel=kernel_map[params['-t']],
-                                       probability=probability_map[params['-b']])
-        elif self.svm_type == 'one-class SVM':
-            self.svm_model = svm.OneClassSVM(kernel=kernel_map[params['-t']])
-        elif self.svm_type == 'epsilon-SVR':
-            self.svm_model = svm.SVR(C=self.train_params['-c'],
-                                     kernel=kernel_map[params['-t']])
-        elif self.svm_type == 'nu-SVR':
-            self.svm_model = svm.NuSVR(C=self.train_params['-c'],
-                                       kernel=kernel_map[params['-t']])
-
+        self._log.debug("Making parameters obj")
+        svm_params = svmutil.svm_parameter(self._gen_param_string(params))
+        self._log.debug("Creating SVM problem")
+        svm_problem = svm.svm_problem(train_labels, train_vectors)
+        del train_vectors
         self._log.debug("Training SVM model")
-        self.svm_model.fit(train_vectors, train_labels)  # type: ignore
+        self.svm_model = svmutil.svm_train(svm_problem, svm_params)
         self._log.debug("Training SVM model -- Done")
 
         if self.svm_label_map_elem and self.svm_label_map_elem.writable():
@@ -431,26 +394,30 @@ class LibSvmClassifier (SupervisedClassifier):
         svm_label_map = self.svm_label_map
         c_base = dict((la, 0.) for la in svm_label_map.values())
 
-        svm_model_labels = self.get_labels()
-        print("svm model labels", svm_model_labels)
-        print("svm model keys", list(self.svm_label_map.keys()))
-        nr_class = len(svm_model_labels)
+        # Effectively reproducing the body of svmutil.svm_predict in order to
+        # simplify and get around excessive prints
+        svm_type = self.svm_model.get_svm_type()
+        nr_class = self.svm_model.get_nr_class()
+        # Model internal labels. Parallel to ``prob_estimates`` array.
+        svm_model_labels = self.svm_model.get_labels()
 
         # TODO: Normalize input arrays in batch(es). TEST if current norm
         #       function can just take a matrix?
 
-        if self.svm_model.probability:
-            if self.svm_type in ['nu-SVR', 'epsilon-SVR']:
+        if self.svm_model.is_probability_model():
+            # noinspection PyUnresolvedReferences
+            if svm_type in [svm.NU_SVR, svm.EPSILON_SVR]:
                 nr_class = 0
 
-            def single_pred(v: numpy.ndarray):
+            def single_pred(v):
                 prob_estimates = (ctypes.c_double * nr_class)()
-                prob_estimates[:nr_class] = self.svm_model.predict_proba(v.reshape(1, -1))[0]
+                v, idx = svm.gen_svm_nodearray(v.tolist())
+                svm.libsvm.svm_predict_probability(self.svm_model, v,
+                                                   prob_estimates)
                 c = dict(c_base)  # Shallow copy
-                c.update({label: prob for label, prob
+                c.update({svm_label_map[label]: prob for label, prob
                           in zip(svm_model_labels, prob_estimates[:nr_class])})
                 return c
-
             # If n_jobs == 1, just be serial
             if n_jobs == 1:
                 return (single_pred(v) for v in vec_mat)
@@ -458,26 +425,22 @@ class LibSvmClassifier (SupervisedClassifier):
                 return parallel_map(single_pred, vec_mat,
                                     cores=n_jobs,
                                     use_multiprocessing=True)
+
         else:
-            def single_label(v: numpy.ndarray):
-                if self.svm_type in ['epsilon-SVR', 'nu-SVR']:  # TODO
-                    prediction = self.svm_model.predict(v.reshape(1, -1))
-                    prediction_idx = numpy.argmin(numpy.abs(numpy.ndarray(list(self.svm_label_map.keys())) - prediction))
-                    prediction = list(self.svm_label_map.keys())[prediction_idx]
-                elif self.svm_type in ['one-class SVM']:
-                    prediction = self.svm_model.predict(v.reshape(1, -1))[0]
-                    if prediction == -1:  # negative prediction
-                        prediction = 1
-                    else:  # positive prediction
-                        prediction = 2
-                else:
-                    prediction = self.svm_model.predict(v.reshape(1, -1))[0]
+            # noinspection PyUnresolvedReferences
+            if svm_type in (svm.ONE_CLASS, svm.EPSILON_SVR, svm.NU_SVC):
+                nr_classifier = 1
+            else:
+                nr_classifier = nr_class * (nr_class - 1) // 2
 
+            def single_label(v):
+                dec_values = (ctypes.c_double * nr_classifier)()
+                v, idx = svm.gen_svm_nodearray(v.tolist())
+                label = svm.libsvm.svm_predict_values(self.svm_model, v,
+                                                      dec_values)
                 c = dict(c_base)  # Shallow copy
-                print("Prediction!", prediction, svm_label_map)
-                c[svm_label_map[prediction]] = 1.
+                c[svm_label_map[label]] = 1.
                 return c
-
             # If n_jobs == 1, just be serial
             if n_jobs == 1:
                 return (single_label(v) for v in vec_mat)
@@ -485,6 +448,7 @@ class LibSvmClassifier (SupervisedClassifier):
                 return parallel_map(single_label, vec_mat,
                                     cores=n_jobs,
                                     use_multiprocessing=True)
+
 
 # Explicitly declare to avoid silly warning about ignoring parent abstract
 # class.

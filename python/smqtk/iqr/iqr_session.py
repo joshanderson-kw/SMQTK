@@ -15,6 +15,7 @@ from smqtk.algorithms import NearestNeighborsIndex, RankRelevancyWithFeedback
 from smqtk.representation import DescriptorElement, DescriptorElementFactory
 from smqtk.representation.descriptor_set.memory import MemoryDescriptorSet
 from smqtk.utils import SmqtkObject
+from smqtk.utils.metrics import euclidean_distance
 
 
 class IqrSession (SmqtkObject):
@@ -326,6 +327,56 @@ class IqrSession (SmqtkObject):
             if not pos:
                 raise RuntimeError("Did not find at least one positive "
                                    "adjudication.")
+
+            # Get working set descriptors
+            pool_uids, pool_de = zip(*self.working_set.items())
+            pool = [de.vector() for de in pool_de]
+
+            # Auto-select negative examples if none are given
+            if not neg:
+                neg_autoselect = set()
+                self.autoneg_select_ratio = 1.0
+                self.distance_metric = euclidean_distance
+                self._log.info(f"Auto-selecting negative examples. \
+                              ({self.autoneg_select_ratio} per positive)")
+                # For each positive example, find the farthest descriptor
+                # from it to use as a negative example
+                for p in pos:
+                    # Compute distance between current positive example and
+                    # each of the working set descriptors
+                    distances = []
+                    for desc_v in pool:
+                        distances.append(self.distance_metric(p, np.array(desc_v)))
+
+                    np_distances: np.array = np.array(distances)
+
+                    # Scan vector for max distance index
+                    # - Allow variable number of maximally distance descriptors to
+                    #   be picked per positive.
+                    # track most distance neighbors
+                    m_set = {}
+                    # track smallest distance of most distant neighbors
+                    m_val = -float('inf')
+                    for i in range(np_distances.size):
+                        if np_distances[i] > m_val:
+                            m_set[np_distances[i]] = i
+
+                            if len(m_set) > self.autoneg_select_ratio:
+                                if m_val in m_set:
+                                    del m_set[m_val]
+                            m_val = min(m_set)
+
+                    for i in m_set.values():
+                        neg_autoselect.add(pool_de[i])
+
+                # Remove any positive examples from auto-selected results
+                neg_autoselect.difference_update((self.positive_descriptors |
+                                                  self.external_positive_descriptors))
+                self._log.debug(f"Auto-selected negative descriptors \
+                               [{len(neg_autoselect)}]: {neg_autoselect}")
+
+                for n in neg_autoselect:
+                    neg.append(n.vector())
 
             self._log.debug("Ranking working set with %d pos and %d neg total "
                             "examples.", len(pos), len(neg))
