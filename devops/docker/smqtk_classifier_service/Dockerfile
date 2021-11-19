@@ -12,13 +12,13 @@ SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update \
  && apt-get -y install \
-        cmake=3.10.2-1ubuntu2.18.04.1 \
-        curl=7.58.0-2ubuntu3.10 \
-        less=487-0.1 \
-        parallel=20161222-1 \
-        python3-dev=3.6.7-1~18.04 \
-        python3-pip=9.0.1-2.3~ubuntu1.18.04.3 \
-        vim=2:8.0.1453-1ubuntu1.3 \
+        cmake \
+        curl \
+        less \
+        parallel \
+        python3-dev \
+        python3-pip \
+        vim \
         # Caffe TPL deps
         libboost-python1.65.1=1.65.1+dfsg-0ubuntu5 \
         libboost-system1.65.1=1.65.1+dfsg-0ubuntu5 \

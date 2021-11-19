@@ -15,18 +15,18 @@ SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update \
  && apt-get -y install \
-        cmake=3.10.2-1ubuntu2.18.04.1 \
+        cmake \
         curl \
-        less=487-0.1 \
-        parallel=20161222-1 \
-        python3-dev=3.6.7-1~18.04 \
+        less \
+        parallel \
+        python3-dev \
         python3-pip \
         sudo \
         vim \
         # PostgreSQL 10 Installation
-        postgresql-10=10.15-0ubuntu0.18.04.1 \
+        postgresql-10 \
         # MongoDB Installation
-        mongodb=1:3.6.3-0ubuntu1.1 \
+        mongodb \
         # Caffe/FAISS TPL deps
         libboost-python1.65.1=1.65.1+dfsg-0ubuntu5 \
         libboost-system1.65.1=1.65.1+dfsg-0ubuntu5 \
@@ -50,7 +50,8 @@ RUN pip3 install \
         psycopg2-binary==2.8.5 \
         # Nice-to-haves
         file-magic==0.4.0 \
-        ipython==7.14.0
+        ipython==7.14.0 \
+        jupyterlab
 
 ###############################################################################
 # COPY in FAISS wheel and install
@@ -147,6 +148,11 @@ COPY --chown=smqtk:smqtk \
      devops/docker/smqtk_iqr_playground/default_confs/* \
      devops/docker/smqtk_iqr_playground/default_confs/cpu/* \
      /home/smqtk/data/configs/
+
+# Copy in jupyter notebook
+COPY --chown=smqtk:smqtk \
+     devops/docker/smqtk_iqr_playground/notebook \
+     /home/smqtk/data/
 
 ENTRYPOINT ["/home/smqtk/entrypoint.sh"]
 EXPOSE 5000 5001

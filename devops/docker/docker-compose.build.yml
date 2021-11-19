@@ -71,7 +71,7 @@ services:
   # IQR Playground Demo Image CPU/GPU
   #
   iqr-playground-cpu:
-    image: ${SMQTK_REGISTRY}/iqr_playground:${SMQTK_TAG}-cpu
+    image: ${SMQTK_REGISTRY}/iqr_playground:${SMQTK_TAG}-cpu-mono
     depends_on:
       - tpl-caffe-cpu
       - tpl-faiss-gpu
@@ -87,7 +87,7 @@ services:
         FAISS_VERSION:  # using value from .env file.
 
   iqr-playground-gpu:
-    image: ${SMQTK_REGISTRY}/iqr_playground:${SMQTK_TAG}-cuda${CUDA_RUNTIME_IMAGE_TAG}
+    image: ${SMQTK_REGISTRY}/iqr_playground:${SMQTK_TAG}-cuda${CUDA_RUNTIME_IMAGE_TAG}-mono
     depends_on:
       - tpl-caffe-gpu
       - tpl-faiss-gpu

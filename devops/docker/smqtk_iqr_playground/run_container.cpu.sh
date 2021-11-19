@@ -12,9 +12,9 @@ set -e
 
 # Container image to use
 IQR_CONTAINER=kitware/smqtk/iqr_playground
-IQR_CONTAINER_VERSION="latest-cpu"
+IQR_CONTAINER_VERSION="latest-cpu-mono"
 # Name for run container instance
-CONTAINER_NAME="smqtk-iqr-playground-gpu"
+CONTAINER_NAME="smqtk-iqr-playground-cpu-mono"
 IQR_GUI_PORT_PUBLISH=5000
 IQR_REST_PORT_PUBLISH=5001
 
@@ -31,7 +31,9 @@ then
   docker run -d \
     -p ${IQR_GUI_PORT_PUBLISH}:5000 \
     -p ${IQR_REST_PORT_PUBLISH}:5001 \
+    -p 8888:8888 \
     -v "${IMAGE_DIR}":/images \
+    -v "/home/local/KHQ/josh.anderson/Projects/SMQTK/SMQTK/python/smqtk":/usr/local/lib/python3.6/dist-packages/smqtk \
     --name "${CONTAINER_NAME}" \
     ${IQR_CONTAINER}:${IQR_CONTAINER_VERSION} -b "$@"
 fi
