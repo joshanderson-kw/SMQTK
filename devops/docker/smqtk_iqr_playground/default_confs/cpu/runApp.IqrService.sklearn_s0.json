@@ -20,7 +20,7 @@
                 "type": "smqtk.representation.classification_element.memory.MemoryClassificationElement"
             },
             "classifier_config": {
-                "smqtk.algorithms.classifier.libsvm_sklearn.LibSvmClassifier": {
+                "smqtk.algorithms.classifier.sklearn_svm.SkLearnSvmClassifier": {
                     "normalize": 2,
                     "svm_label_map_uri": null,
                     "svm_model_uri": null,
@@ -31,7 +31,7 @@
                         "-t": 0
                     }
                 },
-                "type": "smqtk.algorithms.classifier.libsvm_sklearn.LibSvmClassifier"
+                "type": "smqtk.algorithms.classifier.sklearn_svm.SkLearnSvmClassifier"
             },
             "descriptor_factory": {
                 "smqtk.representation.descriptor_element.postgres.PostgresDescriptorElement": {
@@ -186,7 +186,7 @@
                     "rank_relevancy": {
                         "smqtk.algorithms.rank_relevancy.wrap_classifier.RankRelevancyWithSupervisedClassifier": {
                             "classifier_inst": {
-                                "smqtk.algorithms.classifier.libsvm_sklearn.LibSvmClassifier": {
+                                "smqtk.algorithms.classifier.sklearn_svm.SkLearnSvmClassifier": {
                                     "n_jobs": 4,
                                     "normalize": 2,
                                     "svm_label_map_uri": null,
@@ -198,7 +198,7 @@
                                         "-t": 0
                                     }
                                 },
-                                "type": "smqtk.algorithms.classifier.libsvm_sklearn.LibSvmClassifier"
+                                "type": "smqtk.algorithms.classifier.sklearn_svm.SkLearnSvmClassifier"
                             }
                         },
                         "type": "smqtk.algorithms.rank_relevancy.wrap_classifier.RankRelevancyWithSupervisedClassifier"
