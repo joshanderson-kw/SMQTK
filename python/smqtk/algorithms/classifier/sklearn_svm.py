@@ -13,12 +13,18 @@ import numpy
 import numpy as np
 import numpy.linalg
 
-from smqtk_dataprovider import from_uri
-from smqtk_descriptors import DescriptorElement
-from smqtk_descriptors.utils import parallel_map
+from smqtk.algorithms import SupervisedClassifier
+from smqtk.representation import DescriptorElement
+from smqtk.representation.data_element import from_uri
+from smqtk.utils.parallel import parallel_map
 
-from smqtk_classifier.interfaces.classify_descriptor import CLASSIFICATION_DICT_T
-from smqtk_classifier.interfaces.classify_descriptor_supervised import ClassifyDescriptorSupervised
+CLASSIFICATION_LABEL_T = Any
+CLASSIFICATION_VALUE_T = float
+# For RO input types
+CLASSIFICATION_MAP_T = Mapping[CLASSIFICATION_LABEL_T, CLASSIFICATION_VALUE_T]
+# For concrete output types
+CLASSIFICATION_DICT_T = Dict[CLASSIFICATION_LABEL_T, CLASSIFICATION_VALUE_T]
+NEG_INF = float('-inf')
 
 
 LOG = logging.getLogger(__name__)
@@ -43,7 +49,7 @@ except ImportError:
     svm = None
 
 
-class SkLearnSvmClassifier (ClassifyDescriptorSupervised):
+class SkLearnSvmClassifier (SupervisedClassifier):
     """
     Classifier that uses SkLearn for support-vector machine functionality.
 
