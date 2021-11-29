@@ -220,7 +220,10 @@ fi
 ################################################################################
 
 echo "Starting jupyter notebook..."
-jupyter-notebook --ip 0.0.0.0 &>"${LOG_DIR}/jupyter_notebook.log"
+pip3 install --upgrade jupyter_http_over_ws>=0.0.7 && jupyter serverextension enable --py jupyter_http_over_ws
+jupyter-notebook --NotebookApp.allow_origin='https://colab.research.google.com' \
+                 --port=8888 --NotebookApp.port_retries=0 \
+                 --ip 0.0.0.0 &>"${LOG_DIR}/jupyter_notebook.log"
 JUPYTER_PID="jupyter.pid"
 echo "$!" >"${JUPYTER_PID}"
 echo "Starting jupyter notebook... Done"
