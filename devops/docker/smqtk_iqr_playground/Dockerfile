@@ -158,11 +158,6 @@ COPY --chown=smqtk:smqtk \
      devops/docker/smqtk_iqr_playground/notebook_pics/* \
      /home/smqtk/data/notebook_pics/
 
-# Copy in jupyter notebook file
-COPY --chown=smqtk:smqtk \
-     devops/docker/smqtk_iqr_playground/libsvm_test.ipynb \
-     /home/smqtk/data/
-
 ENTRYPOINT ["/home/smqtk/entrypoint.sh"]
 EXPOSE 5000 5001
 

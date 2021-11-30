@@ -9,6 +9,7 @@ import tempfile
 import numpy
 import numpy.linalg
 import scipy.stats
+import sklearn
 
 from smqtk.algorithms import SupervisedClassifier
 from smqtk.representation import DescriptorElement
@@ -314,7 +315,9 @@ class LibSvmClassifier (SupervisedClassifier):
         #: :type: dict
         params = deepcopy(self.train_params)
         params.update(param_debug)
+
         # Calculating class weights if set to C-SVC type SVM
+        weights = {}
         if '-s' not in params or int(params['-s']) == 0:
             # (john.moeller): The weighting should probably be the geometric
             # mean of the number of examples over the classes divided by the
@@ -323,16 +326,24 @@ class LibSvmClassifier (SupervisedClassifier):
             for i, n in enumerate(train_group_sizes, CLASS_LABEL_OFFSET):
                 w = gmean / n
                 params['-w' + str(i)] = w
+                weights[i] = w
                 self._log.debug("-- class '%s' weight: %s",
                                 self.svm_label_map[i], w)
+
 
         self._log.debug("Making parameters obj")
         svm_params = svmutil.svm_parameter(self._gen_param_string(params))
         self._log.debug("Creating SVM problem")
         svm_problem = svm.svm_problem(train_labels, train_vectors)
-        del train_vectors
+        #del train_vectors
         self._log.debug("Training SVM model")
+        print("training", weights)
         self.svm_model = svmutil.svm_train(svm_problem, svm_params)
+        self.svm_model_sklearn = sklearn.svm.SVC(C=2,
+                                                 kernel='linear',
+                                                 probability=True,
+                                                 class_weight=weights)
+        self.svm_model_sklearn.fit(train_vectors, train_labels)  # type: ignore
         self._log.debug("Training SVM model -- Done")
 
         if self.svm_label_map_elem and self.svm_label_map_elem.writable():
@@ -418,6 +429,21 @@ class LibSvmClassifier (SupervisedClassifier):
                 c.update({svm_label_map[label]: prob for label, prob
                           in zip(svm_model_labels, prob_estimates[:nr_class])})
                 return c
+
+            import math
+            for v in vec_mat:
+                l = single_pred(v)
+                s = self.svm_model_sklearn.predict_proba(v.reshape(1, -1))
+
+                print("libsvm", l)
+                print("sklearn", s)
+
+                if (math.isclose(l['neg'], s[0][0], abs_tol=10**-3) and
+                    math.isclose(l['pos'], s[0][1], abs_tol=10**-3)):
+                    print("Pos and negative prediction within 3 decimal points\n")
+                else:
+                    print("FAIL")
+
             # If n_jobs == 1, just be serial
             if n_jobs == 1:
                 return (single_pred(v) for v in vec_mat)
